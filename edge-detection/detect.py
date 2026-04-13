@@ -1,8 +1,10 @@
 import cv2 as cv
 import numpy as np
+from pathlib import Path
 
-IMAGE_PATH = 'pooltable-painted-scrnsht.PNG'
-OUTPUT_PATH = 'pooltable-detected.PNG'
+_HERE = Path(__file__).parent
+IMAGE_PATH = _HERE.parent / 'images' / 'pooltable-painted-scrnsht.PNG'
+OUTPUT_PATH = _HERE / 'images' / 'pooltable-detected.PNG'
 
 # Paint colors used to mark the table
 # #be1251 (pink)  → BGR(81, 18, 190) → HSV(169, 231, 190)
@@ -52,7 +54,7 @@ def detectPockets(_img, _rails):
 
 
 if __name__ == '__main__':
-    img = cv.imread(IMAGE_PATH)
+    img = cv.imread(str(IMAGE_PATH))
     assert img is not None, f"Could not read {IMAGE_PATH}"
 
     rails = detectRails(img)
@@ -64,5 +66,5 @@ if __name__ == '__main__':
     for p1, p2 in rails:
         cv.line(canvas, p1, p2, color=(0, 220, 0), thickness=2)
 
-    cv.imwrite(OUTPUT_PATH, canvas)
+    cv.imwrite(str(OUTPUT_PATH), canvas)
     print(f"Saved: {OUTPUT_PATH}")
