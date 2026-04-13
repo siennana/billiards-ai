@@ -7,6 +7,7 @@
     * track balls made/missed
     * identy types: bank, kick, safety, etc.
     * suggestions: bank/kick angles
+* translate video stream to a simple animation representing the game state
 
 ### Plan
 * PHASE 1:
