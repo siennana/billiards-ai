@@ -25,8 +25,5 @@ Post-homography output:
 
 ### Video demonstration
 
-<video width="640" height="480" controls>
-  <source src="public/recording-output-clip.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+https://github.com/siennana/billiards-ai/blob/main/public/recording-output-clip.mp4
 
