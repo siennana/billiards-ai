@@ -1,8 +1,6 @@
 # billiards-ai
 
 ## PHASE 1
-Goal: Translate a raw camera image of a pool table into a normalized, top-down game state using homography.
-
 This phase demonstrates how a homography maps the camera's perspective view to a bird's-eye view that is easier for game analysis.
 
 ### Image pipeline
@@ -24,4 +22,11 @@ Pre-homography overlay:
 Post-homography output:
 
 ![Post-homography top-down output](images/post-homography-detection-output.jpg)
+
+### Video demonstration
+
+<video width="640" height="480" controls>
+  <source src="public/recording-output-clip.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
