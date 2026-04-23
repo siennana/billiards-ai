@@ -11,8 +11,8 @@ SHORT_LENGTH = 44
 CALIBRATE_IMAGE_PATH = _HERE.parent / 'images' / 'table-snapshot-corners.jpg'
 CORNERS_PATH = _HERE / 'corners.json'
 HOMOGRAPHY_PATH = _HERE / 'homography.npy'
-OUTPUT_WIDTH = 900
-OUTPUT_HEIGHT = 450
+OUTPUT_WIDTH = 450
+OUTPUT_HEIGHT = 900
 
 points = [] # 4 corners of raw table
 display_frame = None
@@ -27,6 +27,8 @@ def translateTable():
     return 0
 
 # click 4 corners of raw image
+# Mouse callback for the calibration window. Records each left-click as a
+# corner, draws it on the frame, and connects corners with lines as they accumulate.
 def click_event(event, x, y, flags, param):
   if event == cv2.EVENT_LBUTTONDOWN and len(points) < 4:
     points.append((x, y))
@@ -41,6 +43,9 @@ def click_event(event, x, y, flags, param):
       print("All 4 corners selected. Press any key to save...")
     cv2.imshow("Calibration", display_frame)
 
+# Sorts 4 points into a consistent order — top-left, top-right, bottom-right,
+# bottom-left — regardless of the order they were clicked. Uses x+y sum to
+# find TL/BR and x-y difference to find TR/BL.
 def order_corners(pts):
   pts = np.array(pts, dtype="float32")
   ordered = np.zeros((4, 2), dtype="float32")
@@ -52,6 +57,9 @@ def order_corners(pts):
   ordered[3] = pts[np.argmax(diff)]
   return ordered
 
+# Computes the homography matrix that maps the clicked table corners (trapezoid)
+# to a flat top-down rectangle of OUTPUT_WIDTH x OUTPUT_HEIGHT. Saves the
+# ordered corners to JSON and the matrix to a .npy file for later reuse.
 def compute_and_save(corners):
   src = order_corners(corners)
   dst = np.array([
@@ -73,6 +81,8 @@ def compute_and_save(corners):
 
   return H
 
+# Opens the calibration image in a window and waits for the user to click the
+# 4 table corners. Once all 4 are selected, computes and saves the homography.
 def run_calibration():
   global display_frame
   display_frame = cv2.imread(str(CALIBRATE_IMAGE_PATH)).copy()
@@ -87,6 +97,9 @@ def run_calibration():
   H = compute_and_save(points)
   return H
 
+# Loads an existing calibration (corners.json + homography.npy) if present,
+# showing a preview so the user can confirm or redo it. Falls back to
+# run_calibration() if no saved calibration is found.
 def load_or_calibrate():
   if os.path.exists(CORNERS_PATH) and os.path.exists(HOMOGRAPHY_PATH):
     print(f"Found existing calibration in {CORNERS_PATH} — loading...")
