@@ -3,15 +3,14 @@ import numpy as np
 import json
 from pathlib import Path
 
-from detection import detectBalls, transformBalls
+from homography.detection import transformBalls
 
 _HERE = Path(__file__).parent
 
-VIDEO_PATH      = _HERE.parent.parent / 'video' / 'recording.mkv'
-CORNERS_PATH    = _HERE / 'corners.json'
-HOMOGRAPHY_PATH = _HERE / 'homography.npy'
-OUTPUT_VIDEO    = _HERE.parent.parent / 'video' / (VIDEO_PATH.stem + '-output.mp4')
-POSITIONS_PATH  = _HERE / (VIDEO_PATH.stem + '-positions.json')
+VIDEO_PATH      = _HERE.parent / 'video' / 'recording.mkv'
+CORNERS_PATH    = _HERE / 'homography' / 'corners.json'
+HOMOGRAPHY_PATH = _HERE / 'homography' / 'homography.npy'
+OUTPUT_DIR      = _HERE.parent / 'video' / 'test-output'
 
 OUTPUT_WIDTH  = 450
 OUTPUT_HEIGHT = 900
@@ -42,16 +41,22 @@ def drawFrame(frame, corners, balls, translated):
   return np.hstack([left, right_resized])
 
 
-# Processes the video frame by frame: detects balls, translates positions,
-# writes an annotated output video, and saves per-frame ball positions to JSON.
-def processVideo():
+# Processes the video frame by frame using the provided detect_fn, translates
+# ball positions to top-down coords, writes an annotated output video, and
+# saves per-frame ball positions to JSON. Both outputs are named using
+# output_name and placed in video/test-output.
+#
+# detect_fn signature: (frame, table_mask) -> list[(cx, cy, r)]
+def processVideo(detect_fn, input_path, output_path):
+  output_video   = OUTPUT_DIR / f'{output_path}.mp4'
+  positions_path = OUTPUT_DIR / f'{output_path}-positions.json'
+
   with open(CORNERS_PATH) as f:
     corners = np.array(json.load(f), dtype=np.float32)
   H = np.load(HOMOGRAPHY_PATH)
 
-  # Precompute table mask
-  cap = cv2.VideoCapture(str(VIDEO_PATH))
-  assert cap.isOpened(), f"Could not open {VIDEO_PATH}"
+  cap = cv2.VideoCapture(str(input_path))
+  assert cap.isOpened(), f"Could not open {input_path}"
 
   fps = cap.get(cv2.CAP_PROP_FPS)
   frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -70,7 +75,7 @@ def processVideo():
   sample_out = drawFrame(sample_frame, corners, [], [])
   out_h, out_w = sample_out.shape[:2]
   fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-  writer = cv2.VideoWriter(str(OUTPUT_VIDEO), fourcc, fps, (out_w, out_h))
+  writer = cv2.VideoWriter(str(output_video), fourcc, fps, (out_w, out_h))
 
   all_positions = {}
   frame_idx = 0
@@ -81,14 +86,12 @@ def processVideo():
     if not ret:
       break
 
-    balls = detectBalls(frame, table_mask)
+    balls = detect_fn(frame, table_mask)
     translated = transformBalls(balls, H)
 
-    # Save positions for this frame
     if translated:
       all_positions[frame_idx] = [(tx, ty) for tx, ty in translated]
 
-    # Write annotated frame
     out_frame = drawFrame(frame, corners, balls, translated)
     writer.write(out_frame)
 
@@ -100,13 +103,13 @@ def processVideo():
   cap.release()
   writer.release()
 
-  # Save positions log
-  with open(POSITIONS_PATH, 'w') as f:
+  with open(positions_path, 'w') as f:
     json.dump(all_positions, f)
 
-  print(f"Output video: {OUTPUT_VIDEO}")
-  print(f"Positions log: {POSITIONS_PATH} ({len(all_positions)} frames with detections)")
+  print(f"Output video: {output_video}")
+  print(f"Positions log: {positions_path} ({len(all_positions)} frames with detections)")
 
 
 if __name__ == '__main__':
-  processVideo()
+  from homography.detection import detectBalls
+  processVideo(detectBalls, 'recording-felt-output')

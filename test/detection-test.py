@@ -5,11 +5,11 @@ from pathlib import Path
 
 _HERE = Path(__file__).parent
 
-IMAGE_PATH      = _HERE.parent.parent / 'images' / 'table-snapshot-balls.jpg'
-CORNERS_PATH    = _HERE / 'corners.json'
-HOMOGRAPHY_PATH = _HERE / 'homography.npy'
-PRE_OUTPUT_PATH = _HERE.parent.parent / 'images' / 'pre-homography-overlay.jpg'
-POST_OUTPUT_PATH = _HERE.parent.parent / 'images' / 'post-homography-detection-output.jpg'
+IMAGE_PATH      = _HERE.parent / 'images' / 'table-snapshot-balls.jpg'
+CORNERS_PATH    = _HERE.parent / 'src' / 'homography' / 'corners.json'
+HOMOGRAPHY_PATH = _HERE.parent / 'src' / 'homography' / 'homography.npy'
+PRE_OUTPUT_PATH = _HERE.parent / 'images' / 'pre-homography-overlay.jpg'
+POST_OUTPUT_PATH = _HERE.parent / 'images' / 'post-homography-detection-output.jpg'
 
 OUTPUT_WIDTH  = 450
 OUTPUT_HEIGHT = 900
