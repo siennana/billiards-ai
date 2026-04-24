@@ -25,5 +25,5 @@ Post-homography output:
 
 ### Video demonstration
 
-https://github.com/siennana/billiards-ai/blob/main/public/recording-output-clip.mp4
+![Video demonstration](public/recording-output-clip.gif)
 
