@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 
 _HERE = Path(__file__).parent
-IMAGE_PATH = _HERE.parent / 'images' / 'pooltable-painted-scrnsht.PNG'
+IMAGE_PATH = _HERE.parent.parent / 'images' / 'pooltable-painted-scrnsht.PNG'
 OUTPUT_PATH = _HERE / 'images' / 'pooltable-detected.PNG'
 
 # Paint colors used to mark the table

@@ -8,7 +8,7 @@ _HERE = Path(__file__).parent
 
 # dimensions in inches
 SHORT_LENGTH = 44
-CALIBRATE_IMAGE_PATH = _HERE.parent / 'images' / 'table-snapshot-corners.jpg'
+CALIBRATE_IMAGE_PATH = _HERE.parent.parent / 'images' / 'table-snapshot-corners.jpg'
 CORNERS_PATH = _HERE / 'corners.json'
 HOMOGRAPHY_PATH = _HERE / 'homography.npy'
 OUTPUT_WIDTH = 450

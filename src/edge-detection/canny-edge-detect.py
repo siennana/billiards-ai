@@ -4,7 +4,7 @@ from pathlib import Path
 _HERE = Path(__file__).parent
 
 # Load the image
-image = cv.imread(str(_HERE.parent / 'images' / 'pooltable-raw-scrnsht.PNG'))
+image = cv.imread(str(_HERE.parent.parent / 'images' / 'pooltable-raw-scrnsht.PNG'))
 
 # Convert to grayscale
 gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
