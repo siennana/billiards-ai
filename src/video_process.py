@@ -8,6 +8,7 @@ from homography.detection import transformBalls
 _HERE = Path(__file__).parent
 
 VIDEO_PATH      = _HERE.parent / 'video' / 'recording.mkv'
+VIDEO_PATH_1      = _HERE.parent / 'video' / 'recording-1.mkv'
 CORNERS_PATH    = _HERE / 'homography' / 'corners.json'
 HOMOGRAPHY_PATH = _HERE / 'homography' / 'homography.npy'
 OUTPUT_DIR      = _HERE.parent / 'video' / 'test-output'
@@ -112,4 +113,5 @@ def processVideo(detect_fn, input_path, output_path):
 
 if __name__ == '__main__':
   from homography.detection import detectBalls
-  processVideo(detectBalls, 'recording-felt-output')
+  #processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
+  processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
