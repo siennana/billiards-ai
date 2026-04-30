@@ -114,4 +114,5 @@ def processVideo(detect_fn, input_path, output_path):
 if __name__ == '__main__':
   from homography.detection import detectBalls
   #processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
-  processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
+  #processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
+  processVideo(detectBalls, VIDEO_PATH, 'recording-felt-output')

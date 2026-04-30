@@ -15,3 +15,12 @@
         * balls made, balls missed, total time stamp
     * store in database
 * PHASE 2:
+
+
+### Process
+* OpenCV homography and basic object detection
+    * calibrate table dimensions from static image
+    * use homography to translate raw dimensions into 2D rectangular plane
+
+* train YOLO model
+    * create custom dataset with Roboflow
