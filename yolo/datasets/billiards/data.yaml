@@ -1,6 +1,0 @@
-path: C:/Users/sienn/repos/billiards-ai/yolo/datasets/billiards
-train: train/images
-val: valid/images
-
-nc: 2
-names: ['ball', 'chalk']
