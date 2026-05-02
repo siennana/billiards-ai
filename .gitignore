@@ -1,5 +1,4 @@
 video/
 __pycache__/
-yolo/runs/
-yolo/datasets/billiards/train/
-yolo/datasets/billiards/valid/
+datasets/
+runs/

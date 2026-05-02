@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from pathlib import Path
+from ultralytics import YOLO
 
 # COCO class index for "sports ball" — what the pretrained YOLOv8 model
 # generally fires on for billiard balls.
@@ -78,5 +79,29 @@ def detectBallsYOLO(frame, table_mask):
     ix, iy = int(cx), int(cy)
     if 0 <= iy < h and 0 <= ix < w and table_mask[iy, ix] > 0:
       balls.append((float(cx), float(cy), float(r)))
+
+
+      
+# Detects billiard balls using a trained YOLOv8 model. Accepts either a file
+# path string or a pre-loaded YOLO instance (pass a loaded model to avoid
+# reloading weights on every frame). Filters to class 0 ('ball') and centers
+# that fall inside table_mask. Returns (cx, cy, radius) tuples.
+def detectBallsYoloTrained(frame, table_mask, model):
+  if isinstance(model, str):
+    model = YOLO(model)
+
+  results = model(frame, verbose=False)[0]
+  h, w = table_mask.shape[:2]
+  balls = []
+  for box in results.boxes:
+    if int(box.cls) != 0:
+      continue
+    x1, y1, x2, y2 = box.xyxy[0].tolist()
+    cx = (x1 + x2) / 2
+    cy = (y1 + y2) / 2
+    r = ((x2 - x1) + (y2 - y1)) / 4
+    ix, iy = int(cx), int(cy)
+    if 0 <= iy < h and 0 <= ix < w and table_mask[iy, ix] > 0:
+      balls.append((cx, cy, r))
 
   return balls
