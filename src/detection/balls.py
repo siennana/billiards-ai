@@ -1,22 +1,21 @@
 import cv2
 import numpy as np
+from pathlib import Path
 
 # COCO class index for "sports ball" — what the pretrained YOLOv8 model
 # generally fires on for billiard balls.
 COCO_SPORTS_BALL = 32
-YOLO_MODEL_NAME = 'yolov8n.pt'
-YOLO_CONF       = 0.25
+YOLO_WEIGHTS = Path(__file__).parent.parent.parent / 'yolo' / 'weights' / 'yolov8n.pt'
+YOLO_CONF    = 0.25
 
 _yolo_model = None
 
 
-# Lazily load the pretrained YOLOv8 model on first use. The first call
-# downloads the weights (~6MB) into the working dir if not already cached.
 def _getYoloModel():
   global _yolo_model
   if _yolo_model is None:
     from ultralytics import YOLO
-    _yolo_model = YOLO(YOLO_MODEL_NAME)
+    _yolo_model = YOLO(str(YOLO_WEIGHTS))
   return _yolo_model
 
 

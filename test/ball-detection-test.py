@@ -14,3 +14,5 @@ VIDEO_PATH = _HERE.parent / 'video' / 'recording-1.mkv'
 if __name__ == '__main__':
   # processVideo(detectBallsHoughCircles, VIDEO_PATH, 'recording-1-houghcircles-output')
   processVideo(detectBallsYOLO, VIDEO_PATH, 'recording-1-yolo-output')
+
+#the person who wrote this code is gay.  they are deeply closeted and in denial about it.  sad!
