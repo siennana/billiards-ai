@@ -8,6 +8,9 @@ from ultralytics import YOLO
 COCO_SPORTS_BALL = 32
 YOLO_WEIGHTS = Path(__file__).parent.parent.parent / 'yolo' / 'weights' / 'yolov8n.pt'
 YOLO_CONF    = 0.25
+# Reject YOLO detections whose derived radius exceeds this — guards against
+# the occasional huge bbox the model fires on pocket shadows or felt artifacts.
+MAX_BALL_RADIUS = 30
 
 _yolo_model = None
 
@@ -76,12 +79,50 @@ def detectBallsYOLO(frame, table_mask):
   for box in results[0].boxes.xywh.cpu().numpy():
     cx, cy, bw, bh = box
     r = max(bw, bh) / 2.0
+    if r > MAX_BALL_RADIUS:
+      continue
     ix, iy = int(cx), int(cy)
     if 0 <= iy < h and 0 <= ix < w and table_mask[iy, ix] > 0:
       balls.append((float(cx), float(cy), float(r)))
 
+  return balls
 
-      
+
+# Tracks billiard balls across frames using a trained YOLOv8 model with
+# ultralytics' built-in tracker (BoT-SORT by default). Must be called
+# frame-by-frame in temporal order so `persist=True` keeps track IDs stable.
+# Accepts either a file path string or a pre-loaded YOLO instance — pass a
+# loaded model to avoid reloading weights on every frame. Filters to class 0
+# ('ball'). Returns (cx, cy, r, ball_id) tuples.
+def trackBallsYoloTrained(frame, table_mask, model):
+  if isinstance(model, str):
+    model = YOLO(model)
+
+  results = model.track(frame, persist=True, verbose=False)
+
+  if not results or results[0].boxes is None or results[0].boxes.id is None:
+    return []
+
+  h, w = table_mask.shape[:2]
+  boxes = results[0].boxes
+  ids = boxes.id.cpu().numpy().astype(int)
+  classes = boxes.cls.cpu().numpy().astype(int)
+  xywh = boxes.xywh.cpu().numpy()
+
+  balls = []
+  for (cx, cy, bw, bh), bid, cls in zip(xywh, ids, classes):
+    if cls != 0:
+      continue
+    r = max(bw, bh) / 2.0
+    if r > MAX_BALL_RADIUS:
+      continue
+    ix, iy = int(cx), int(cy)
+    if 0 <= iy < h and 0 <= ix < w and table_mask[iy, ix] > 0:
+      balls.append((float(cx), float(cy), float(r), int(bid)))
+
+  return balls
+
+
 # Detects billiard balls using a trained YOLOv8 model. Accepts either a file
 # path string or a pre-loaded YOLO instance (pass a loaded model to avoid
 # reloading weights on every frame). Filters to class 0 ('ball') and centers
@@ -100,6 +141,8 @@ def detectBallsYoloTrained(frame, table_mask, model):
     cx = (x1 + x2) / 2
     cy = (y1 + y2) / 2
     r = ((x2 - x1) + (y2 - y1)) / 4
+    if r > MAX_BALL_RADIUS:
+      continue
     ix, iy = int(cx), int(cy)
     if 0 <= iy < h and 0 <= ix < w and table_mask[iy, ix] > 0:
       balls.append((cx, cy, r))

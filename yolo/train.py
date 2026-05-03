@@ -5,13 +5,14 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
-_HERE = Path(__file__).parent
-DATASET_DIR = _HERE / 'datasets'  / 'billiards'
+_HERE     = Path(__file__).parent
+_REPO     = _HERE.parent
+DATASET_DIR = _REPO / 'datasets' / 'billiards'
 DATA_YAML   = DATASET_DIR / 'data.yaml'
-WEIGHTS_DIR = _HERE / 'weights'
 RUNS_DIR    = _HERE / 'runs'
+OUTPUT_DIR  = _REPO / 'weights' / 'v1'
 
-BASE_WEIGHTS = WEIGHTS_DIR / 'yolov8n.pt'
+BASE_WEIGHTS = _HERE / 'weights' / 'yolov8n.pt'
 VAL_FRACTION = 0.2
 SPLIT_SEED   = 42
 
@@ -69,7 +70,7 @@ def main():
   parser.add_argument('--device',  default='')         # '' = auto, 'cpu', '0', etc.
   parser.add_argument('--name',    default='billiards')
   parser.add_argument('--weights', default=str(BASE_WEIGHTS),
-                      help='Starting checkpoint (defaults to the pretrained yolov8n.pt in yolo/weights).')
+                      help='Starting checkpoint (defaults to yolo/weights/yolov8n.pt).')
   args = parser.parse_args()
 
   _ensureValSplit()
@@ -89,7 +90,8 @@ def main():
 
   best = Path(results.save_dir) / 'weights' / 'best.pt'
   if best.exists():
-    out = WEIGHTS_DIR / 'billiards-best.pt'
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / 'best.pt'
     shutil.copy(best, out)
     print(f'Copied best weights to {out}')
 

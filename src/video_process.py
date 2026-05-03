@@ -16,23 +16,68 @@ OUTPUT_DIR      = _HERE.parent / 'video' / 'test-output'
 OUTPUT_WIDTH  = 450
 OUTPUT_HEIGHT = 900
 
+# 16 visually distinct BGR colors for tracking up to 16 ball IDs.
+# Indexed by `track_id % 16` so wraparound is graceful when the tracker
+# assigns a fresh ID after losing/regaining a ball.
+BALL_COLORS = [
+  (0, 255, 255),   # yellow
+  (255, 0, 0),     # blue
+  (0, 0, 255),     # red
+  (128, 0, 128),   # purple
+  (0, 165, 255),   # orange
+  (0, 200, 0),     # green
+  (40, 80, 140),   # maroon
+  (200, 200, 200), # light gray (stand-in for 8-ball)
+  (255, 255, 0),   # cyan
+  (255, 0, 255),   # magenta
+  (0, 255, 128),   # spring green
+  (180, 180, 255), # pink
+  (255, 200, 0),   # azure
+  (50, 150, 50),   # forest green
+  (200, 100, 220), # lavender
+  (240, 240, 240), # off-white (stand-in for cue)
+]
+
 
 # Draws the original frame with table outline and detected ball markers,
 # and a top-down view with translated ball positions.
-def drawFrame(frame, corners, balls, translated):
+#
+# When tracePaths=True, balls is expected to be 4-tuples (cx, cy, r, id) and
+# translated is 3-tuples (tx, ty, id). trails_orig and trails_top map
+# track_id -> list of past (x, y) points and are drawn as colored polylines.
+def drawFrame(frame, corners, balls, translated, tracePaths=False,
+              trails_orig=None, trails_top=None):
   # --- Left panel: original with overlays ---
   left = frame.copy()
   pts = corners.astype(np.int32)
   cv2.polylines(left, [pts], isClosed=True, color=(255, 255, 255), thickness=1)
-  for cx, cy, r in balls:
-    cv2.circle(left, (int(cx), int(cy)), int(r), color=(0, 255, 255), thickness=2)
+
+  if tracePaths and trails_orig:
+    for bid, points in trails_orig.items():
+      if len(points) >= 2:
+        cv2.polylines(left, [np.array(points, dtype=np.int32)],
+                      isClosed=False, color=BALL_COLORS[bid % 16], thickness=2)
+
+  for ball in balls:
+    cx, cy, r = ball[0], ball[1], ball[2]
+    color = BALL_COLORS[ball[3] % 16] if tracePaths and len(ball) > 3 else (0, 255, 255)
+    cv2.circle(left, (int(cx), int(cy)), int(r), color=color, thickness=2)
 
   # --- Right panel: top-down view ---
   right = np.zeros((OUTPUT_HEIGHT, OUTPUT_WIDTH, 3), dtype=np.uint8)
   cv2.rectangle(right, (0, 0), (OUTPUT_WIDTH - 1, OUTPUT_HEIGHT - 1),
                 color=(255, 255, 255), thickness=2)
-  for tx, ty in translated:
-    cv2.circle(right, (tx, ty), 6, color=(0, 255, 255), thickness=-1)
+
+  if tracePaths and trails_top:
+    for bid, points in trails_top.items():
+      if len(points) >= 2:
+        cv2.polylines(right, [np.array(points, dtype=np.int32)],
+                      isClosed=False, color=BALL_COLORS[bid % 16], thickness=2)
+
+  for tball in translated:
+    tx, ty = tball[0], tball[1]
+    color = BALL_COLORS[tball[2] % 16] if tracePaths and len(tball) > 2 else (0, 255, 255)
+    cv2.circle(right, (tx, ty), 6, color=color, thickness=-1)
 
   # Resize right panel to match left panel height for side-by-side
   h_left = left.shape[0]
@@ -47,8 +92,12 @@ def drawFrame(frame, corners, balls, translated):
 # saves per-frame ball positions to JSON. Both outputs are named using
 # output_name and placed in video/test-output.
 #
-# detect_fn signature: (frame, table_mask) -> list[(cx, cy, r)]
-def processVideo(detect_fn, input_path, output_path):
+# detect_fn signature:
+#   tracePaths=False: (frame, table_mask) -> list[(cx, cy, r)]
+#   tracePaths=True:  (frame, table_mask) -> list[(cx, cy, r, ball_id)]
+# When tracePaths=True the per-id position history is accumulated and drawn
+# as colored polylines on both panels.
+def processVideo(detect_fn, input_path, output_path, tracePaths=False):
   output_video   = OUTPUT_DIR / f'{output_path}.mp4'
   positions_path = OUTPUT_DIR / f'{output_path}-positions.json'
 
@@ -79,6 +128,8 @@ def processVideo(detect_fn, input_path, output_path):
   writer = cv2.VideoWriter(str(output_video), fourcc, fps, (out_w, out_h))
 
   all_positions = {}
+  trails_orig = {}
+  trails_top  = {}
   frame_idx = 0
 
   print(f"Processing {frame_count} frames at {fps:.0f} fps...")
@@ -87,16 +138,36 @@ def processVideo(detect_fn, input_path, output_path):
     if not ret:
       break
 
-    balls = detect_fn(frame, table_mask)
-    translated = transformBalls(balls, H)
+    detections = detect_fn(frame, table_mask)
 
-    if translated:
-      all_positions[frame_idx] = [(tx, ty) for tx, ty in translated]
+    if tracePaths:
+      # Strip ids before homography (transformBalls expects 3-tuples), then
+      # re-pair by index — order is preserved.
+      xy_only = [(cx, cy, r) for cx, cy, r, _ in detections]
+      translated_xy = transformBalls(xy_only, H)
+      translated = [(tx, ty, bid)
+                    for (tx, ty), (_, _, _, bid) in zip(translated_xy, detections)]
+      balls = detections
 
-    out_frame = drawFrame(frame, corners, balls, translated)
+      for cx, cy, _, bid in balls:
+        trails_orig.setdefault(bid, []).append((int(cx), int(cy)))
+      for tx, ty, bid in translated:
+        trails_top.setdefault(bid, []).append((int(tx), int(ty)))
+
+      if translated:
+        all_positions[frame_idx] = [(tx, ty, bid) for tx, ty, bid in translated]
+    else:
+      balls = detections
+      translated = transformBalls(balls, H)
+      if translated:
+        all_positions[frame_idx] = [(tx, ty) for tx, ty in translated]
+
+    out_frame = drawFrame(frame, corners, balls, translated, tracePaths,
+                          trails_orig if tracePaths else None,
+                          trails_top  if tracePaths else None)
     writer.write(out_frame)
 
-    if frame_idx % 500 == 0:
+    if frame_idx % 100 == 0:
       print(f"  Frame {frame_idx}/{frame_count} — {len(balls)} balls detected")
 
     frame_idx += 1
