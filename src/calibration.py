@@ -8,9 +8,9 @@ _HERE = Path(__file__).parent
 
 # dimensions in inches
 SHORT_LENGTH = 44
-CALIBRATE_IMAGE_PATH = _HERE.parent.parent / 'images' / 'table-snapshot-corners.jpg'
-CORNERS_PATH = _HERE / 'corners.json'
-HOMOGRAPHY_PATH = _HERE / 'homography.npy'
+CALIBRATE_IMAGE_PATH = _HERE.parent / 'images' / 'table-snapshot-corners.jpg'
+CORNERS_PATH = _HERE.parent / 'data' / 'homography' / 'corners.json'
+HOMOGRAPHY_PATH = _HERE.parent / 'data' / 'homography' / 'homography.npy'
 OUTPUT_WIDTH = 450
 OUTPUT_HEIGHT = 900
 
@@ -70,9 +70,12 @@ def compute_and_save(corners):
   ], dtype="float32")
   H, _ = cv2.findHomography(src, dst)
 
-  # Save corners as JSON (human readable, easy to inspect)
+  # Middle pocket = midpoint of each long side (TL+BL, TR+BR)
+  middle_left  = [(src[0][0] + src[3][0]) / 2, (src[0][1] + src[3][1]) / 2]
+  middle_right = [(src[1][0] + src[2][0]) / 2, (src[1][1] + src[2][1]) / 2]
+
   with open(CORNERS_PATH, "w") as f:
-      json.dump(src.tolist(), f, indent=2)
+      json.dump({"corners": src.tolist(), "pockets": [middle_left, middle_right]}, f, indent=2)
   print(f"Corners saved to {CORNERS_PATH}")
 
   # Save homography matrix
@@ -104,7 +107,8 @@ def load_or_calibrate():
   if os.path.exists(CORNERS_PATH) and os.path.exists(HOMOGRAPHY_PATH):
     print(f"Found existing calibration in {CORNERS_PATH} — loading...")
     with open(CORNERS_PATH) as f:
-        corners = json.load(f)
+        data = json.load(f)
+    corners = data["corners"] if isinstance(data, dict) else data
     print(f"Corners: {corners}")
 
     # Show the saved corners overlaid on the jpg for a sanity check
@@ -127,6 +131,6 @@ def load_or_calibrate():
     print("No calibration found — starting fresh...")
     return run_calibration()
 
-# --- Entry point ---
-H = load_or_calibrate()
-print("Ready to process video with H:\n", H)
+if __name__ == '__main__':
+  H = load_or_calibrate()
+  print("Ready to process video with H:\n", H)

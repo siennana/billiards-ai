@@ -23,6 +23,49 @@ def _getYoloModel():
   return _yolo_model
 
 
+# HSV range for the blue table felt — used by the felt-subtraction detector
+FELT_LOWER = np.array([85, 20, 80])
+FELT_UPPER = np.array([135, 180, 220])
+
+# Contour filters for the HSV felt-based detector
+HSV_MIN_AREA = 80
+HSV_MAX_AREA = 800
+HSV_MIN_CIRCULARITY = 0.5
+
+
+# Detects billiard balls by masking the blue felt and finding ball-sized,
+# roughly-circular blobs in what remains. No deep model — purely color-based.
+# Returns (cx, cy, radius) tuples matching the detector interface.
+def detectBallsHSV(frame, table_mask):
+  hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+  felt_mask = cv2.inRange(hsv, FELT_LOWER, FELT_UPPER)
+
+  # Non-felt pixels within the table area = ball candidates
+  candidates = cv2.bitwise_and(cv2.bitwise_not(felt_mask), table_mask)
+
+  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+  candidates = cv2.morphologyEx(candidates, cv2.MORPH_OPEN, kernel)
+  candidates = cv2.morphologyEx(candidates, cv2.MORPH_CLOSE, kernel)
+
+  contours, _ = cv2.findContours(candidates, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+  balls = []
+  for c in contours:
+    area = cv2.contourArea(c)
+    if area < HSV_MIN_AREA or area > HSV_MAX_AREA:
+      continue
+    perim = cv2.arcLength(c, True)
+    if perim == 0:
+      continue
+    circularity = 4 * np.pi * area / (perim ** 2)
+    if circularity < HSV_MIN_CIRCULARITY:
+      continue
+    (cx, cy), radius = cv2.minEnclosingCircle(c)
+    balls.append((float(cx), float(cy), float(radius)))
+
+  return balls
+
+
 # HoughCircles tuning for billiard balls — may need adjusting per camera/resolution
 HOUGH_DP         = 1.2
 HOUGH_MIN_DIST   = 20

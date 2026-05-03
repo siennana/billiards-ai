@@ -3,14 +3,14 @@ import numpy as np
 import json
 from pathlib import Path
 
-from homography.detection import transformBalls
+from homography import transformBalls
 
 _HERE = Path(__file__).parent
 
 VIDEO_PATH      = _HERE.parent / 'video' / 'recording.mkv'
 VIDEO_PATH_1      = _HERE.parent / 'video' / 'recording-1.mkv'
-CORNERS_PATH    = _HERE / 'homography' / 'corners.json'
-HOMOGRAPHY_PATH = _HERE / 'homography' / 'homography.npy'
+CORNERS_PATH    = _HERE.parent / 'data' / 'homography' / 'corners.json'
+HOMOGRAPHY_PATH = _HERE.parent / 'data' / 'homography' / 'homography.npy'
 OUTPUT_DIR      = _HERE.parent / 'video' / 'test-output'
 
 OUTPUT_WIDTH  = 450
@@ -102,7 +102,8 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False):
   positions_path = OUTPUT_DIR / f'{output_path}-positions.json'
 
   with open(CORNERS_PATH) as f:
-    corners = np.array(json.load(f), dtype=np.float32)
+    data = json.load(f)
+  corners = np.array(data["corners"] if isinstance(data, dict) else data, dtype=np.float32)
   H = np.load(HOMOGRAPHY_PATH)
 
   cap = cv2.VideoCapture(str(input_path))
@@ -183,7 +184,5 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False):
 
 
 if __name__ == '__main__':
-  from homography.detection import detectBalls
-  #processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
-  #processVideo(detectBalls, VIDEO_PATH_1, 'recording-felt-output')
-  processVideo(detectBalls, VIDEO_PATH, 'recording-felt-output')
+  from detection.balls import detectBallsHSV
+  processVideo(detectBallsHSV, VIDEO_PATH, 'recording-felt-output')
