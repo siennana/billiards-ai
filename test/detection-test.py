@@ -6,8 +6,8 @@ from pathlib import Path
 _HERE = Path(__file__).parent
 
 IMAGE_PATH      = _HERE.parent / 'images' / 'table-snapshot-balls.jpg'
-CORNERS_PATH    = _HERE.parent / 'src' / 'homography' / 'corners.json'
-HOMOGRAPHY_PATH = _HERE.parent / 'src' / 'homography' / 'homography.npy'
+CORNERS_PATH    = _HERE.parent / 'data' / 'homography' / 'corners.json'
+HOMOGRAPHY_PATH = _HERE.parent / 'data' / 'homography' / 'homography.npy'
 PRE_OUTPUT_PATH = _HERE.parent / 'images' / 'pre-homography-overlay.jpg'
 POST_OUTPUT_PATH = _HERE.parent / 'images' / 'post-homography-detection-output.jpg'
 
@@ -28,7 +28,8 @@ def testDetection():
 
   # Load calibration data
   with open(CORNERS_PATH) as f:
-    corners = np.array(json.load(f), dtype=np.float32)
+    data = json.load(f)
+  corners = np.array(data["corners"] if isinstance(data, dict) else data, dtype=np.float32)
   H = np.load(HOMOGRAPHY_PATH)
 
   # --- Detect red circles ---
