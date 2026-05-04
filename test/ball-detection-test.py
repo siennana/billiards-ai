@@ -7,18 +7,21 @@ from ultralytics import YOLO
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from video_process import processVideo
-from detection.balls import detectBallsHoughCircles, detectBallsYOLO, detectBallsYoloTrained
+from detection.balls import detectBallsHoughCircles, detectBallsYOLO, trackBallsYoloTrained
 
 _HERE        = Path(__file__).parent
-VIDEO_PATH   = _HERE.parent / 'video' / 'sienna-mighty-x.mkv'
+VIDEO_DIR    = _HERE.parent / 'video'
 DATASET_YAML = _HERE.parent / 'datasets' / 'Billiards Detection.yolov8' / 'data.yaml'
 WEIGHTS_PATH = _HERE.parent / 'weights' / 'v0' / 'best.pt'
 
 
 if __name__ == '__main__':
-  # processVideo(detectBallsHoughCircles, VIDEO_PATH, 'recording-1-houghcircles-output')
-  # processVideo(detectBallsYOLO, VIDEO_PATH, 'recording-1-yolo-output')
-  #the person who wrote this code is gay.  they are deeply closeted and in denial about it.  sad!
+  if len(sys.argv) < 3:
+    print("Usage: ball-detection-test.py <input_filename> <output_filename>")
+    sys.exit(1)
+
+  video_path   = VIDEO_DIR / sys.argv[1]
+  output_stem  = sys.argv[2]
 
   if not WEIGHTS_PATH.exists():
     print("No trained weights found — training on dataset...")
@@ -33,5 +36,5 @@ if __name__ == '__main__':
 
   print("Running ball detection on video using YOLOv8...")
   model = YOLO(str(WEIGHTS_PATH))
-  detect_fn = partial(detectBallsYoloTrained, model=model)
-  processVideo(detect_fn, VIDEO_PATH, 'sienna-mighty-x-yolo-output')
+  detect_fn = partial(trackBallsYoloTrained, model=model)
+  processVideo(detect_fn, video_path, output_stem, tracePaths=True, trackStats=True)
