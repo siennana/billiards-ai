@@ -94,20 +94,16 @@ def drawFrame(frame, corners, balls, translated, tracePaths=False,
 # output_name and placed in video/test-output.
 #
 # detect_fn signature:
-#   tracePaths=False: (frame, table_mask) -> list[(cx, cy, r)]
-#   tracePaths=True:  (frame, table_mask) -> list[(cx, cy, r, ball_id)]
-# When tracePaths=True the per-id position history is accumulated and drawn
-# as colored polylines on both panels.
+#   no tracking:                  (frame, table_mask) -> list[(cx, cy, r)]
+#   tracePaths or trackStats:     (frame, table_mask) -> list[(cx, cy, r, ball_id)]
+# trackStats drives pocket-event detection (needs IDs but no drawing).
+# tracePaths drives the colored trail polylines on the output video.
 def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStats=False):
   output_video   = OUTPUT_DIR / f'{output_path}.mp4'
   positions_path = OUTPUT_DIR / f'{output_path}-positions.json'
   events_path    = OUTPUT_DIR / f'{output_path}-events.json'
 
-  # Pocket detection requires ball IDs, which only the tracking path provides.
-  if trackStats and not tracePaths:
-    raise ValueError("trackStats=True requires tracePaths=True (needs ball IDs)")
-  pocket_tracker = (PocketTracker(standardPockets(OUTPUT_WIDTH, OUTPUT_HEIGHT))
-                    if trackStats else None)
+  useTracking = tracePaths or trackStats
 
   with open(CORNERS_PATH) as f:
     data = json.load(f)
@@ -118,6 +114,8 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
   assert cap.isOpened(), f"Could not open {input_path}"
 
   fps = cap.get(cv2.CAP_PROP_FPS)
+  pocket_tracker = (PocketTracker(standardPockets(OUTPUT_WIDTH, OUTPUT_HEIGHT), fps=fps)
+                    if trackStats else None)
   frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
   w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
   h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -149,7 +147,7 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
 
     detections = detect_fn(frame, table_mask)
 
-    if tracePaths:
+    if useTracking:
       # Strip ids before homography (transformBalls expects 3-tuples), then
       # re-pair by index — order is preserved.
       xy_only = [(cx, cy, r) for cx, cy, r, _ in detections]
@@ -158,10 +156,11 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
                     for (tx, ty), (_, _, _, bid) in zip(translated_xy, detections)]
       balls = detections
 
-      for cx, cy, _, bid in balls:
-        trails_orig.setdefault(bid, []).append((int(cx), int(cy)))
-      for tx, ty, bid in translated:
-        trails_top.setdefault(bid, []).append((int(tx), int(ty)))
+      if tracePaths:
+        for cx, cy, _, bid in balls:
+          trails_orig.setdefault(bid, []).append((int(cx), int(cy)))
+        for tx, ty, bid in translated:
+          trails_top.setdefault(bid, []).append((int(tx), int(ty)))
 
       if translated:
         all_positions[frame_idx] = [(tx, ty, bid) for tx, ty, bid in translated]
@@ -195,9 +194,15 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
   print(f"Positions log: {positions_path} ({len(all_positions)} frames with detections)")
 
   if pocket_tracker is not None:
+    pocket_tracker.finalize()
     with open(events_path, 'w') as f:
-      json.dump(pocket_tracker.events, f, indent=2)
-    print(f"Pocket events: {events_path} ({len(pocket_tracker.events)} events)")
+      json.dump({
+        "pocketEvents": pocket_tracker.events,
+        "shotEvents":   pocket_tracker.shotEvents,
+      }, f, indent=2)
+    print(f"Pocket events: {events_path} "
+          f"({len(pocket_tracker.events)} pockets, "
+          f"{len(pocket_tracker.shotEvents)} shots)")
 
 
 if __name__ == '__main__':
