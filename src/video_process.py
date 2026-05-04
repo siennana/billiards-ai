@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from homography import transformBalls
+from stat_tracking import PocketTracker, standardPockets
 
 _HERE = Path(__file__).parent
 
@@ -97,9 +98,16 @@ def drawFrame(frame, corners, balls, translated, tracePaths=False,
 #   tracePaths=True:  (frame, table_mask) -> list[(cx, cy, r, ball_id)]
 # When tracePaths=True the per-id position history is accumulated and drawn
 # as colored polylines on both panels.
-def processVideo(detect_fn, input_path, output_path, tracePaths=False):
+def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStats=False):
   output_video   = OUTPUT_DIR / f'{output_path}.mp4'
   positions_path = OUTPUT_DIR / f'{output_path}-positions.json'
+  events_path    = OUTPUT_DIR / f'{output_path}-events.json'
+
+  # Pocket detection requires ball IDs, which only the tracking path provides.
+  if trackStats and not tracePaths:
+    raise ValueError("trackStats=True requires tracePaths=True (needs ball IDs)")
+  pocket_tracker = (PocketTracker(standardPockets(OUTPUT_WIDTH, OUTPUT_HEIGHT))
+                    if trackStats else None)
 
   with open(CORNERS_PATH) as f:
     data = json.load(f)
@@ -157,6 +165,10 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False):
 
       if translated:
         all_positions[frame_idx] = [(tx, ty, bid) for tx, ty, bid in translated]
+
+      if pocket_tracker is not None:
+        for ev in pocket_tracker.update(frame_idx, translated):
+          print(f"  POCKET: frame {ev['frame']} ball #{ev['ball_id']} -> pocket {ev['pocket_index']}")
     else:
       balls = detections
       translated = transformBalls(balls, H)
@@ -181,6 +193,11 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False):
 
   print(f"Output video: {output_video}")
   print(f"Positions log: {positions_path} ({len(all_positions)} frames with detections)")
+
+  if pocket_tracker is not None:
+    with open(events_path, 'w') as f:
+      json.dump(pocket_tracker.events, f, indent=2)
+    print(f"Pocket events: {events_path} ({len(pocket_tracker.events)} events)")
 
 
 if __name__ == '__main__':
