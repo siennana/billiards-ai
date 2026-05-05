@@ -7,10 +7,10 @@ from ultralytics import YOLO
 
 _HERE     = Path(__file__).parent
 _REPO     = _HERE.parent
-DATASET_DIR = _REPO / 'datasets' / 'billiards'
+DATASET_DIR = _REPO / 'datasets' / 'billiards-2'
 DATA_YAML   = DATASET_DIR / 'data.yaml'
 RUNS_DIR    = _HERE / 'runs'
-OUTPUT_DIR  = _REPO / 'weights' / 'v1'
+OUTPUT_DIR  = _REPO / 'weights' / 'v2'
 
 BASE_WEIGHTS = _HERE / 'weights' / 'yolov8n.pt'
 VAL_FRACTION = 0.2
@@ -57,18 +57,19 @@ def _writeDataYamlWithAbsolutePath():
     f'train: train/images\n'
     f'val: valid/images\n'
     f'\n'
-    f"nc: 2\n"
-    f"names: ['ball', 'chalk']\n"
+    f"nc: 3\n"
+    f"names: ['ball', 'chalk', 'cue stick']\n"
   )
 
 
 def main():
   parser = argparse.ArgumentParser(description='Train YOLOv8 on the billiards dataset.')
-  parser.add_argument('--epochs',  type=int, default=50)
-  parser.add_argument('--imgsz',   type=int, default=640)
-  parser.add_argument('--batch',   type=int, default=16)
-  parser.add_argument('--device',  default='')         # '' = auto, 'cpu', '0', etc.
-  parser.add_argument('--name',    default='billiards')
+  parser.add_argument('--epochs',   type=int, default=100)
+  parser.add_argument('--imgsz',    type=int, default=960)
+  parser.add_argument('--batch',    type=int, default=16)
+  parser.add_argument('--device',   default='')         # '' = auto, 'cpu', '0', etc.
+  parser.add_argument('--name',     default='billiards-2')
+  parser.add_argument('--patience', type=int, default=20)
   parser.add_argument('--weights', default=str(BASE_WEIGHTS),
                       help='Starting checkpoint (defaults to yolo/weights/yolov8n.pt).')
   args = parser.parse_args()
@@ -83,6 +84,7 @@ def main():
     imgsz=args.imgsz,
     batch=args.batch,
     device=args.device,
+    patience=args.patience,
     project=str(RUNS_DIR),
     name=args.name,
     exist_ok=False,

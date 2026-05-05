@@ -12,7 +12,7 @@ from detection.balls import detectBallsHoughCircles, detectBallsYOLO, trackBalls
 _HERE        = Path(__file__).parent
 VIDEO_DIR    = _HERE.parent / 'video'
 DATASET_YAML = _HERE.parent / 'datasets' / 'Billiards Detection.yolov8' / 'data.yaml'
-WEIGHTS_PATH = _HERE.parent / 'weights' / 'v0' / 'best.pt'
+WEIGHTS_PATH = _HERE.parent / 'weights' / 'v2' / 'best.pt'
 
 
 if __name__ == '__main__':
