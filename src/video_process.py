@@ -59,6 +59,26 @@ def drawFrame(frame, corners, balls, translated, tracePaths=False,
         cv2.polylines(left, [np.array(points, dtype=np.int32)],
                       isClosed=False, color=BALL_COLORS[bid % 16], thickness=2)
 
+  # Fill each ball with a translucent confidence-coded color.
+  # red conf<=0.4, yellow conf<=0.8, green otherwise. Drawn on an overlay
+  # and alpha-blended once so the per-ball outline stays crisp.
+  overlay = left.copy()
+  has_fill = False
+  for ball in balls:
+    if len(ball) <= 4:
+      continue
+    cx, cy, r, conf = int(ball[0]), int(ball[1]), int(ball[2]), float(ball[4])
+    if conf <= 0.4:
+      fill = (0, 0, 255)     # red (BGR)
+    elif conf <= 0.8:
+      fill = (0, 255, 255)   # yellow
+    else:
+      fill = (0, 255, 0)     # green
+    cv2.circle(overlay, (cx, cy), r, fill, thickness=-1)
+    has_fill = True
+  if has_fill:
+    cv2.addWeighted(overlay, 0.4, left, 0.6, 0, left)
+
   for ball in balls:
     cx, cy, r = ball[0], ball[1], ball[2]
     color = BALL_COLORS[ball[3] % 16] if tracePaths and len(ball) > 3 else (0, 255, 255)
@@ -99,9 +119,11 @@ def drawFrame(frame, corners, balls, translated, tracePaths=False,
 # trackStats drives pocket-event detection (needs IDs but no drawing).
 # tracePaths drives the colored trail polylines on the output video.
 def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStats=False):
-  output_video   = OUTPUT_DIR / f'{output_path}.mp4'
-  positions_path = OUTPUT_DIR / f'{output_path}-positions.json'
-  events_path    = OUTPUT_DIR / f'{output_path}-events.json'
+  output_dir     = OUTPUT_DIR / output_path
+  output_dir.mkdir(parents=True, exist_ok=True)
+  output_video   = output_dir / 'recording.mkv'
+  positions_path = output_dir / 'positions.json'
+  events_path    = output_dir / 'events.json'
 
   useTracking = tracePaths or trackStats
 
@@ -140,55 +162,66 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
   frame_idx = 0
 
   print(f"Processing {frame_count} frames at {fps:.0f} fps...")
-  while True:
-    ret, frame = cap.read()
-    if not ret:
-      break
+  try:
+    while True:
+      ret, frame = cap.read()
+      if not ret:
+        break
 
-    detections = detect_fn(frame, table_mask)
+      detections = detect_fn(frame, table_mask)
 
-    if useTracking:
-      # Strip ids before homography (transformBalls expects 3-tuples), then
-      # re-pair by index — order is preserved.
-      xy_only = [(cx, cy, r) for cx, cy, r, _ in detections]
-      translated_xy = transformBalls(xy_only, H)
-      translated = [(tx, ty, bid)
-                    for (tx, ty), (_, _, _, bid) in zip(translated_xy, detections)]
-      balls = detections
+      if useTracking:
+        # Strip ids/conf before homography (transformBalls expects 3-tuples),
+        # then re-pair by index — order is preserved.
+        xy_only = [(cx, cy, r) for cx, cy, r, _, _ in detections]
+        translated_xy = transformBalls(xy_only, H)
+        translated = [(tx, ty, bid, conf)
+                      for (tx, ty), (_, _, _, bid, conf) in zip(translated_xy, detections)]
+        balls = detections
 
-      if tracePaths:
-        for cx, cy, _, bid in balls:
-          trails_orig.setdefault(bid, []).append((int(cx), int(cy)))
-        for tx, ty, bid in translated:
-          trails_top.setdefault(bid, []).append((int(tx), int(ty)))
+        if tracePaths:
+          for cx, cy, _, bid, _ in balls:
+            trails_orig.setdefault(bid, []).append((int(cx), int(cy)))
+          for tx, ty, bid, _ in translated:
+            trails_top.setdefault(bid, []).append((int(tx), int(ty)))
 
-      if translated:
-        all_positions[frame_idx] = [(tx, ty, bid) for tx, ty, bid in translated]
+        if translated:
+          all_positions[frame_idx] = [(tx, ty, bid, round(conf, 3))
+                                      for tx, ty, bid, conf in translated]
 
-      if pocket_tracker is not None:
-        for ev in pocket_tracker.update(frame_idx, translated):
-          print(f"  POCKET: frame {ev['frame']} ball #{ev['ball_id']} -> pocket {ev['pocket_index']}")
-    else:
-      balls = detections
-      translated = transformBalls(balls, H)
-      if translated:
-        all_positions[frame_idx] = [(tx, ty) for tx, ty in translated]
+        if pocket_tracker is not None:
+          # PocketTracker expects (tx, ty, bid) — drop conf.
+          tracker_input = [(tx, ty, bid) for tx, ty, bid, _ in translated]
+          for ev in pocket_tracker.update(frame_idx, tracker_input):
+            print(f"  POCKET: frame {ev['frame']} ball #{ev['ball_id']} -> pocket {ev['pocket_index']}")
+      else:
+        balls = detections
+        translated = transformBalls(balls, H)
+        if translated:
+          all_positions[frame_idx] = [(tx, ty) for tx, ty in translated]
 
-    out_frame = drawFrame(frame, corners, balls, translated, tracePaths,
-                          trails_orig if tracePaths else None,
-                          trails_top  if tracePaths else None)
-    writer.write(out_frame)
+      out_frame = drawFrame(frame, corners, balls, translated, tracePaths,
+                            trails_orig if tracePaths else None,
+                            trails_top  if tracePaths else None)
+      writer.write(out_frame)
 
-    if frame_idx % 100 == 0:
-      print(f"  Frame {frame_idx}/{frame_count} — {len(balls)} balls detected")
+      if frame_idx % 100 == 0:
+        print(f"  Frame {frame_idx}/{frame_count} — {len(balls)} balls detected")
 
-    frame_idx += 1
+      frame_idx += 1
+  except KeyboardInterrupt:
+    print(f"\n  Interrupted at frame {frame_idx}/{frame_count} — finalizing partial output...")
 
   cap.release()
   writer.release()
 
   with open(positions_path, 'w') as f:
-    json.dump(all_positions, f)
+    items = sorted(all_positions.items(), key=lambda kv: int(kv[0]))
+    f.write('{\n')
+    for i, (k, v) in enumerate(items):
+      sep = ',' if i < len(items) - 1 else ''
+      f.write(f'  "{k}": {json.dumps(v)}{sep}\n')
+    f.write('}\n')
 
   print(f"Output video: {output_video}")
   print(f"Positions log: {positions_path} ({len(all_positions)} frames with detections)")

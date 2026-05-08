@@ -17,11 +17,15 @@ WEIGHTS_PATH = _HERE.parent / 'weights' / 'v2' / 'best.pt'
 
 if __name__ == '__main__':
   if len(sys.argv) < 3:
-    print("Usage: ball-detection-test.py <input_filename> <output_filename>")
+    print("Usage: ball-detection-test.py <inputFile> <outputExtension>")
+    print("  e.g. ball-detection-test.py ben-alex-clip.mkv yolo-v2")
+    print("  -> video/test-output/ben-alex-clip_yolo-v2/{recording.mkv,positions.json,events.json}")
     sys.exit(1)
 
-  video_path   = VIDEO_DIR / sys.argv[1]
-  output_stem  = sys.argv[2]
+  inputFile       = sys.argv[1]
+  outputExtension = sys.argv[2]
+  video_path      = VIDEO_DIR / inputFile
+  output_subdir   = f'{Path(inputFile).stem}_{outputExtension}'
 
   if not WEIGHTS_PATH.exists():
     print("No trained weights found — training on dataset...")
@@ -36,5 +40,5 @@ if __name__ == '__main__':
 
   print("Running ball detection on video using YOLOv8...")
   model = YOLO(str(WEIGHTS_PATH))
-  detect_fn = partial(trackBallsYoloTrained, model=model)
-  processVideo(detect_fn, video_path, output_stem, tracePaths=True, trackStats=True)
+  detect_fn = partial(trackBallsYoloTrained, model=model, applyFiltering=False)
+  processVideo(detect_fn, video_path, output_subdir, tracePaths=True, trackStats=True)

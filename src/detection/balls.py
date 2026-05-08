@@ -137,7 +137,7 @@ def detectBallsYOLO(frame, table_mask):
 # Accepts either a file path string or a pre-loaded YOLO instance — pass a
 # loaded model to avoid reloading weights on every frame. Filters to class 0
 # ('ball'). Returns (cx, cy, r, ball_id) tuples.
-def trackBallsYoloTrained(frame, table_mask, model):
+def trackBallsYoloTrained(frame, table_mask, model, applyFiltering=True):
   if isinstance(model, str):
     model = YOLO(model)
 
@@ -150,18 +150,19 @@ def trackBallsYoloTrained(frame, table_mask, model):
   boxes = results[0].boxes
   ids = boxes.id.cpu().numpy().astype(int)
   classes = boxes.cls.cpu().numpy().astype(int)
+  confs = boxes.conf.cpu().numpy()
   xywh = boxes.xywh.cpu().numpy()
 
   balls = []
-  for (cx, cy, bw, bh), bid, cls in zip(xywh, ids, classes):
+  for (cx, cy, bw, bh), bid, cls, conf in zip(xywh, ids, classes, confs):
     if cls != 0:
       continue
     r = max(bw, bh) / 2.0
-    if r > MAX_BALL_RADIUS:
+    if applyFiltering and r > MAX_BALL_RADIUS:
       continue
     ix, iy = int(cx), int(cy)
     if 0 <= iy < h and 0 <= ix < w and table_mask[iy, ix] > 0:
-      balls.append((float(cx), float(cy), float(r), int(bid)))
+      balls.append((float(cx), float(cy), float(r), int(bid), float(conf)))
 
   return balls
 

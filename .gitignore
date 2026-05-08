@@ -2,3 +2,4 @@ video/
 __pycache__/
 datasets/
 runs/
+.venv/

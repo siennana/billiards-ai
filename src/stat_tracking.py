@@ -210,14 +210,18 @@ if __name__ == '__main__':
 
   tracker = PocketTracker(standardPockets(width, height), fps=fps)
 
-  # JSON keys are frame indices as strings; values are lists of [tx, ty, bid]
+  # JSON keys are frame indices as strings; values are lists of
+  # [tx, ty, bid] or [tx, ty, bid, conf] — only the first three are used here.
   for frame_idx_str in sorted(positions.keys(), key=int):
     frame_idx = int(frame_idx_str)
-    balls = [(tx, ty, bid) for tx, ty, bid in positions[frame_idx_str]]
+    balls = [(entry[0], entry[1], entry[2]) for entry in positions[frame_idx_str]]
     tracker.update(frame_idx, balls)
   tracker.finalize()
 
-  events_path = positions_path.with_name(positions_path.stem.replace('-positions', '') + '-events.json')
+  if positions_path.name == 'positions.json':
+    events_path = positions_path.with_name('events.json')
+  else:
+    events_path = positions_path.with_name(positions_path.stem.replace('-positions', '') + '-events.json')
   with open(events_path, 'w') as f:
     json.dump({
       "pocketEvents": tracker.events,
