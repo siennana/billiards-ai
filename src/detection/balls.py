@@ -6,11 +6,19 @@ from ultralytics import YOLO
 # COCO class index for "sports ball" — what the pretrained YOLOv8 model
 # generally fires on for billiard balls.
 COCO_SPORTS_BALL = 32
-YOLO_WEIGHTS = Path(__file__).parent.parent.parent / 'yolo' / 'weights' / 'yolov8n.pt'
-YOLO_CONF    = 0.25
+YOLO_WEIGHTS  = Path(__file__).parent.parent.parent / 'yolo' / 'weights' / 'yolov8n.pt'
+TRACKER_YAML  = Path(__file__).parent.parent.parent / 'yolo' / 'trackers' / 'botsort.yaml'
+YOLO_CONF     = 0.25
 # Reject YOLO detections whose derived radius exceeds this — guards against
 # the occasional huge bbox the model fires on pocket shadows or felt artifacts.
 MAX_BALL_RADIUS = 30
+
+# Confidence buckets. trackBallsYoloTrained filters out anything below
+# CONFIDENCE_LOW at inference time. video_process.drawFrame uses the same
+# thresholds to color-code translucent ball fills (red/yellow/green).
+CONFIDENCE_LOW    = 0.4
+CONFIDENCE_MEDIUM = 0.8
+CONFIDENCE_HIGH   = 1.0
 
 _yolo_model = None
 
@@ -141,7 +149,8 @@ def trackBallsYoloTrained(frame, table_mask, model, applyFiltering=True):
   if isinstance(model, str):
     model = YOLO(model)
 
-  results = model.track(frame, persist=True, verbose=False)
+  results = model.track(frame, persist=True, verbose=False, conf=CONFIDENCE_LOW,
+                        tracker=str(TRACKER_YAML))
 
   if not results or results[0].boxes is None or results[0].boxes.id is None:
     return []

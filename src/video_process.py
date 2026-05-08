@@ -5,6 +5,7 @@ from pathlib import Path
 
 from homography import transformBalls
 from stat_tracking import PocketTracker, standardPockets
+from detection.balls import CONFIDENCE_LOW, CONFIDENCE_MEDIUM
 
 _HERE = Path(__file__).parent
 
@@ -59,18 +60,17 @@ def drawFrame(frame, corners, balls, translated, tracePaths=False,
         cv2.polylines(left, [np.array(points, dtype=np.int32)],
                       isClosed=False, color=BALL_COLORS[bid % 16], thickness=2)
 
-  # Fill each ball with a translucent confidence-coded color.
-  # red conf<=0.4, yellow conf<=0.8, green otherwise. Drawn on an overlay
-  # and alpha-blended once so the per-ball outline stays crisp.
+  # Fill each ball with a translucent confidence-coded color, drawn on an
+  # overlay and alpha-blended once so the per-ball outline stays crisp.
   overlay = left.copy()
   has_fill = False
   for ball in balls:
     if len(ball) <= 4:
       continue
     cx, cy, r, conf = int(ball[0]), int(ball[1]), int(ball[2]), float(ball[4])
-    if conf <= 0.4:
+    if conf <= CONFIDENCE_LOW:
       fill = (0, 0, 255)     # red (BGR)
-    elif conf <= 0.8:
+    elif conf <= CONFIDENCE_MEDIUM:
       fill = (0, 255, 255)   # yellow
     else:
       fill = (0, 255, 0)     # green
