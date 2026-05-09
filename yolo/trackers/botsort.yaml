@@ -1,7 +1,8 @@
-# Custom BoT-SORT config tuned for billiards: extended track_buffer keeps
-# Kalman-coasting tracks alive through long occlusions (cue, hands, players)
-# so re-detections reuse the original track ID instead of minting a new one.
-# new_track_thresh raised slightly to suppress spurious one-frame tracks.
+# Custom BoT-SORT config tuned for billiards via test/botsort-tuning-test.py.
+# Sweep findings: match_thresh and new_track_thresh dominate ID stability;
+# track_buffer plateaus past ~150; track_high_thresh barely matters.
+# match_thresh=0.90 + new_track_thresh=0.70 gave the best unique-ID count
+# on the cfr-clip test (87 vs baseline 105, ~17% reduction).
 tracker_type: botsort
 
 # Conf threshold for the first matching pass — only detections >= this are
@@ -15,7 +16,7 @@ track_low_thresh:  0.35
 
 # Min conf to spawn a brand-new track from an unmatched detection. Higher
 # = fewer spurious one-frame tracks but slower to pick up real new balls.
-new_track_thresh:  0.6
+new_track_thresh:  0.7
 
 # Frames a lost track is kept alive on Kalman predictions before being
 # deleted. ~3 sec at 30fps. Raise to bridge longer occlusions.
@@ -23,7 +24,7 @@ track_buffer:      150
 
 # Max matching cost (1 - IoU, optionally fused with conf). Higher = looser
 # IoU matching. 0.85 ≈ accepts matches down to IoU ~0.15.
-match_thresh:      0.85
+match_thresh:      0.9
 
 # When True, blends detection conf into the IoU cost so high-conf
 # detections are preferred during ambiguous assignments.
