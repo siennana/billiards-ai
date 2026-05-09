@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import json
+import time
+import yaml
 from pathlib import Path
 
 from homography import transformBalls
@@ -126,12 +128,14 @@ def drawFrame(frame, corners, balls, translated, tracePaths=False,
 #   tracePaths or trackStats:     (frame, table_mask) -> list[(cx, cy, r, ball_id)]
 # trackStats drives pocket-event detection (needs IDs but no drawing).
 # tracePaths drives the colored trail polylines on the output video.
-def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStats=False):
+def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStats=False,
+                 tracker_yaml=None, weights=None):
   output_dir     = OUTPUT_DIR / output_path
   output_dir.mkdir(parents=True, exist_ok=True)
   output_video   = output_dir / 'recording.mkv'
   positions_path = output_dir / 'positions.json'
   events_path    = output_dir / 'events.json'
+  metadata_path  = output_dir / 'metadata.json'
 
   useTracking = tracePaths or trackStats
 
@@ -168,8 +172,11 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
   trails_orig = {}
   trails_top  = {}
   frame_idx = 0
+  per_frame_ball_counts = []
+  interrupted = False
 
   print(f"Processing {frame_count} frames at {fps:.0f} fps...")
+  start_time = time.time()
   try:
     while True:
       ret, frame = cap.read()
@@ -214,12 +221,16 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
                             frame_idx=frame_idx)
       writer.write(out_frame)
 
+      per_frame_ball_counts.append(len(balls))
       if frame_idx % 100 == 0:
         print(f"  Frame {frame_idx}/{frame_count} — {len(balls)} balls detected")
 
       frame_idx += 1
   except KeyboardInterrupt:
+    interrupted = True
     print(f"\n  Interrupted at frame {frame_idx}/{frame_count} — finalizing partial output...")
+
+  processing_duration = time.time() - start_time
 
   cap.release()
   writer.release()
@@ -246,6 +257,45 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
     print(f"Pocket events: {events_path} "
           f"({len(pocket_tracker.events)} pockets, "
           f"{len(pocket_tracker.shotEvents)} shots)")
+
+  # ---- metadata.json ----
+  # Per-class IDs: only the ball class (0) is tracked downstream by
+  # trackBallsYoloTrained, so this dict will currently always be {"ball": N}.
+  # Structured this way so other classes can be added later without changing
+  # the schema.
+  unique_ball_ids = set()
+  for entries in all_positions.values():
+    for entry in entries:
+      if len(entry) >= 3:
+        unique_ball_ids.add(entry[2])
+
+  botsort_config = {}
+  if tracker_yaml:
+    yaml_p = Path(tracker_yaml)
+    if yaml_p.exists():
+      with open(yaml_p) as f:
+        botsort_config = yaml.safe_load(f) or {}
+
+  meta = {
+    "inputVideo":            str(input_path),
+    "weights":               str(weights) if weights else None,
+    "videoFps":              round(fps, 2) if fps else None,
+    "videoFrameCount":       frame_count,
+    "videoDurationSec":      round(frame_count / fps, 2) if fps else None,
+    "videoWidth":            w,
+    "videoHeight":           h,
+    "framesProcessed":       frame_idx,
+    "framesWithDetections":  len(all_positions),
+    "processingDurationSec": round(processing_duration, 2),
+    "processingFps":         round(frame_idx / processing_duration, 1) if processing_duration > 0 else None,
+    "maxBallsPerFrame":      max(per_frame_ball_counts) if per_frame_ball_counts else 0,
+    "avgBallsPerFrame":      round(sum(per_frame_ball_counts) / len(per_frame_ball_counts), 2) if per_frame_ball_counts else 0,
+    "uniqueIdsPerClass":     {"ball": len(unique_ball_ids)},
+    "interrupted":           interrupted,
+  }
+  with open(metadata_path, 'w') as f:
+    json.dump({"botsort": botsort_config, "metadata": meta}, f, indent=2)
+  print(f"Metadata: {metadata_path}")
 
 
 if __name__ == '__main__':

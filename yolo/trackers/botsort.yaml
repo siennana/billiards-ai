@@ -43,7 +43,14 @@ proximity_thresh:  0.5
 # embeddings). Lower = stricter visual match required.
 appearance_thresh: 0.25
 
-# Enable appearance-based re-identification using a separate embedding
-# model. Off here — billiard balls are visually too similar (solid colors)
-# for a generic ReID model to add value, and it adds inference cost.
+# Enable appearance-based re-identification. With "model: auto" below, this
+# reuses the YOLO detector's own internal features as embeddings (no separate
+# ReID model needed, no extra inference cost). Off by default; flip to True
+# to use embeddings during track-detection matching.
 with_reid:         False
+
+# Required when with_reid: True. "auto" reuses the detection model's native
+# embedding features. Alternatively, set to a path to a YOLO classification
+# model to use as a dedicated ReID encoder. Without this key BoT-SORT crashes
+# (ReID(None)) when with_reid is True.
+model:             auto

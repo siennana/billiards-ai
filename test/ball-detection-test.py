@@ -7,7 +7,7 @@ from ultralytics import YOLO
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from video_process import processVideo
-from detection.balls import detectBallsHoughCircles, detectBallsYOLO, trackBallsYoloTrained
+from detection.balls import detectBallsHoughCircles, detectBallsYOLO, trackBallsYoloTrained, TRACKER_YAML
 
 _HERE        = Path(__file__).parent
 VIDEO_DIR    = _HERE.parent / 'video'
@@ -41,4 +41,5 @@ if __name__ == '__main__':
   print("Running ball detection on video using YOLOv8...")
   model = YOLO(str(WEIGHTS_PATH))
   detect_fn = partial(trackBallsYoloTrained, model=model, applyFiltering=False)
-  processVideo(detect_fn, video_path, output_subdir, tracePaths=True, trackStats=True)
+  processVideo(detect_fn, video_path, output_subdir, tracePaths=True, trackStats=True,
+               tracker_yaml=str(TRACKER_YAML), weights=str(WEIGHTS_PATH))

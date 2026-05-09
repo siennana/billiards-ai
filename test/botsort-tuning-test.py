@@ -111,7 +111,8 @@ if __name__ == '__main__':
     # output_path is relative to OUTPUT_DIR (video/test-output/)
     rel_output = f'botsort-tunings/{i}'
     processVideo(detect_fn, INPUT_CLIP, rel_output,
-                 tracePaths=True, trackStats=True)
+                 tracePaths=True, trackStats=True,
+                 tracker_yaml=str(yaml_path), weights=str(WEIGHTS_PATH))
 
     positions_path = run_dir / 'positions.json'
     if positions_path.exists():
