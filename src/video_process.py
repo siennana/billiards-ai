@@ -48,11 +48,19 @@ BALL_COLORS = [
 # translated is 3-tuples (tx, ty, id). trails_orig and trails_top map
 # track_id -> list of past (x, y) points and are drawn as colored polylines.
 def drawFrame(frame, corners, balls, translated, tracePaths=False,
-              trails_orig=None, trails_top=None):
+              trails_orig=None, trails_top=None, frame_idx=None):
   # --- Left panel: original with overlays ---
   left = frame.copy()
   pts = corners.astype(np.int32)
   cv2.polylines(left, [pts], isClosed=True, color=(255, 255, 255), thickness=1)
+
+  # Frame counter, top-left. Black halo + white text so it reads on any felt.
+  if frame_idx is not None:
+    label = f"frame {frame_idx}"
+    cv2.putText(left, label, (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (0, 0, 0), 4, cv2.LINE_AA)
+    cv2.putText(left, label, (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (255, 255, 255), 1, cv2.LINE_AA)
 
   if tracePaths and trails_orig:
     for bid, points in trails_orig.items():
@@ -202,7 +210,8 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
 
       out_frame = drawFrame(frame, corners, balls, translated, tracePaths,
                             trails_orig if tracePaths else None,
-                            trails_top  if tracePaths else None)
+                            trails_top  if tracePaths else None,
+                            frame_idx=frame_idx)
       writer.write(out_frame)
 
       if frame_idx % 100 == 0:
@@ -232,6 +241,7 @@ def processVideo(detect_fn, input_path, output_path, tracePaths=False, trackStat
       json.dump({
         "pocketEvents": pocket_tracker.events,
         "shotEvents":   pocket_tracker.shotEvents,
+        "rackEvents":   pocket_tracker.rackEvents,
       }, f, indent=2)
     print(f"Pocket events: {events_path} "
           f"({len(pocket_tracker.events)} pockets, "

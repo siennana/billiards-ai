@@ -6,12 +6,12 @@ tracker_type: botsort
 
 # Conf threshold for the first matching pass — only detections >= this are
 # matched to existing tracks on attempt 1.
-track_high_thresh: 0.4
+track_high_thresh: 0.6
 
 # Second-pass threshold — lower-conf detections >= this are then matched to
 # any tracks still unmatched after pass 1. Helps preserve IDs through brief
 # low-conf moments (motion blur, partial occlusion).
-track_low_thresh:  0.1
+track_low_thresh:  0.35
 
 # Min conf to spawn a brand-new track from an unmatched detection. Higher
 # = fewer spurious one-frame tracks but slower to pick up real new balls.
@@ -19,7 +19,7 @@ new_track_thresh:  0.6
 
 # Frames a lost track is kept alive on Kalman predictions before being
 # deleted. ~3 sec at 30fps. Raise to bridge longer occlusions.
-track_buffer:      90
+track_buffer:      150
 
 # Max matching cost (1 - IoU, optionally fused with conf). Higher = looser
 # IoU matching. 0.85 ≈ accepts matches down to IoU ~0.15.
@@ -32,7 +32,7 @@ fuse_score:        True
 # Global motion compensation method — corrects track predictions for
 # camera motion. sparseOptFlow uses Lucas–Kanade on sparse features.
 # (Static-camera billiards barely needs it but it's cheap.)
-gmc_method:        sparseOptFlow
+gmc_method:        none
 
 # Spatial gate for ReID matching: candidate must be within this IoU
 # distance of the predicted track before appearance is considered.

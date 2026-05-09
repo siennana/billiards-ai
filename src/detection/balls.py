@@ -145,12 +145,14 @@ def detectBallsYOLO(frame, table_mask):
 # Accepts either a file path string or a pre-loaded YOLO instance — pass a
 # loaded model to avoid reloading weights on every frame. Filters to class 0
 # ('ball'). Returns (cx, cy, r, ball_id) tuples.
-def trackBallsYoloTrained(frame, table_mask, model, applyFiltering=True):
+def trackBallsYoloTrained(frame, table_mask, model, applyFiltering=True,
+                          tracker_yaml=None):
   if isinstance(model, str):
     model = YOLO(model)
 
+  yaml_path = tracker_yaml if tracker_yaml is not None else str(TRACKER_YAML)
   results = model.track(frame, persist=True, verbose=False, conf=CONFIDENCE_LOW,
-                        tracker=str(TRACKER_YAML))
+                        tracker=yaml_path)
 
   if not results or results[0].boxes is None or results[0].boxes.id is None:
     return []
