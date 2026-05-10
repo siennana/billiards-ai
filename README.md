@@ -9,21 +9,9 @@ This phase demonstrates how a homography maps the camera's perspective view to a
 2. Pre-homography overlay: the same image with the user-calibrated table corners, table boundary, and ball centers marked.
 3. Post-homography output: the normalized top-down game state where detected locations are translated into a consistent coordinate frame.
 
-### Visual demonstration
+### Ball Detection and Tracking with YOLOv8 Trained Model
 
-Raw image:
+![Detection demonstration](public/ben-sienna-20260503_232606-cfr-clip2_yolov5-detected.gif)
 
-![Raw table image](images/table-snapshot-raw.jpg)
-
-Pre-homography overlay:
-
-![Pre-homography overlay](images/pre-homography-overlay.jpg)
-
-Post-homography output:
-
-![Post-homography top-down output](images/post-homography-detection-output.jpg)
-
-### Video demonstration
-
-![Video demonstration](public/recording-output-clip.gif)
+![Tracked demonstration](public/ben-sienna-20260503_232606-cfr-clip2_yolov5-tracked.gif)
 
