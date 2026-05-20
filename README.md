@@ -13,5 +13,5 @@ This phase demonstrates how a homography maps the camera's perspective view to a
 
 ![Detection demonstration](public/ben-sienna-20260503_232606-cfr-clip2_yolov5-detected.gif)
 
-![Tracked demonstration](public/ben-sienna-20260503_232606-cfr-clip2_yolov5-tracked.gif)
+![Tracked demonstration](public/ben-sienna-20260503_232606-cfr-clip2_yolo-v5-tracked.gif)
 
